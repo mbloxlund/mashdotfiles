@@ -1,0 +1,115 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+vv
+
+Created by Jacob Kristhammar on 2011-03-03.
+Copyright (c) 2011 Mashmobile. All rights reserved.
+"""
+
+import glob
+import optparse
+import os
+import platform
+import shutil
+import subprocess
+import sys
+
+
+VIRTUALENV_HOME_ENV = "VIRTUALENV_HOME"
+VIRTUALENV_HOME_DEFAULT = (os.environ.get(VIRTUALENV_HOME_ENV) or 
+                           os.path.join(os.path.expanduser("~"), "envs"))
+VV_ACTIONS = ("reset", "activate")
+
+
+def main():
+    usage = "usage: %%prog [options] %s" % "|".join(VV_ACTIONS)
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option("-e", "--env", type="string", dest="env",
+                      help="path to virtualenvs", metavar=VIRTUALENV_HOME_ENV,
+                      default=VIRTUALENV_HOME_DEFAULT, action="callback",
+                      callback=check_env)
+    parser.add_option("-s", "--site-packages",
+                      action="store_false", dest="isolated", default=True,
+                      help="create virtualenv without --no-site-packages")
+
+    (options, args) = parser.parse_args()
+
+    if len(args) != 1 or args[0] not in VV_ACTIONS:
+        parser.print_usage()
+        sys.exit(1)
+
+    if hasattr(sys, "real_prefix"):
+        print "You must deaactivate the current virtualenv before running vv"
+        sys.exit(1)
+
+    action = args.pop()
+    current_directory = os.getcwd()
+    project_name = os.path.basename(current_directory)
+    project_env = os.path.join(options.env, project_name)
+
+    if action == "reset":
+        create_environment(options, project_env, current_directory)
+        install_project(project_env, current_directory)
+        print "vv done!"
+    if action == "activate":
+        activate_env(project_env)
+
+
+def create_environment(options, project_env, current_directory):
+    print "Creating virtualenv in %s" % project_env
+    virtualenv_args = ["virtualenv"]
+    if os.path.exists(project_env):
+        print "Removing existing env"
+        shutil.rmtree(project_env)
+        virtualenv_args.append("--clear")
+    if options.isolated:
+        print "Using --no-site-packages"
+        virtualenv_args.append("--no-site-packages")
+    virtualenv_args.append(project_env)
+
+    retcode = subprocess.call(virtualenv_args)
+    if retcode:
+        print "Failed to create virtualenv"
+        sys.exit(1)
+
+
+def install_project(project_env, current_directory):
+    requirements_glob = os.path.join(current_directory, 
+                                    "*requirements*.txt")
+    requirement_files = glob.glob(requirements_glob)
+    pip_args = ["pip", "install", "-e", ".", "-E", project_env]
+    for req_file in requirement_files:
+        pip_args.append("-r")
+        pip_args.append(req_file)
+    
+    retcode = subprocess.call(pip_args)
+    if retcode:
+        print "pip failed to reinstall"
+        sys.exit(1)
+
+
+def activate_env(project_env):
+    if "".join(platform.mac_ver()[0].split(".")[:2]) > "103":
+        print "Putting activation command on clipboard"
+        activate_args = ["echo", "source", 
+                         os.path.join(project_env, "bin", "activate"),
+                         "| pbcopy"]
+        retcode = subprocess.call(" ".join(activate_args), shell=True)
+        if retcode:
+            print "Failed to activate virtualenv"
+        print "Paste to activate"
+    else:
+        print "Activation not supported in your platform"
+
+
+def check_env(option, opt_str, value, parser):
+    expanded_path = os.path.expanduser(value)
+    if not os.path.exists(expanded_path):
+        raise optparse.OptionValueError("%s doesn't exist" % value)
+    setattr(parser.values, option.dest, expanded_path)
+
+
+if __name__ == '__main__':
+    main()
+

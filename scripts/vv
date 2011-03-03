@@ -66,14 +66,14 @@ def main():
     project_env = os.path.join(options.env, project_name)
 
     if action == "reset":
-        create_environment(options, project_env, current_directory)
+        create_environment(options, project_env)
         install_project(project_env, current_directory)
         print "vv done!"
     if action == "activate":
         activate_env(project_env)
 
 
-def create_environment(options, project_env, current_directory):
+def create_environment(options, project_env):
     print "Creating virtualenv in %s" % project_env
     virtualenv_args = ["virtualenv"]
     if os.path.exists(project_env):

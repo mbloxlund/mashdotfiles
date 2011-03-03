@@ -3,8 +3,13 @@
 """
 vv - Simple virtualenv helper script
 
-Actions:
+Setup:
+    By default vv will asume that your virtualenvs reside in ~/envs.
+    You can change this by supplying another virtualenv home using the
+    -e/--env command line option or by setting the environment variable
+    VIRTUALENV_HOME
 
+Actions:
 reset
     Create or reset a virtualenv with the same name as the
     current working directory.

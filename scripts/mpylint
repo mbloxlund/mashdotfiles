@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+Run pylint on the package with the same name as the current directory.
+
+Created by Jacob Kristhammar on 2011-03-04.
+Copyright (c) 2011 Mashmobile. All rights reserved.
+"""
+
+import subprocess
+import sys
+import os
+
+def main():
+    project_name = os.path.basename(os.getcwd())
+    pylintrc = os.path.join(os.path.dirname(__file__), "..", "pylint", 
+                            "pylintrc.txt")
+
+    if not os.path.exists(os.path.join(os.getcwd(), project_name)):
+        print "No matching package in project"
+        sys.exit(1)
+
+    pylint_args = ["pylint"] # Executable
+    pylint_args.extend(["-r", "no"]) # No reports
+    pylint_args.extend(["--output-format", "colorized"]) # Colorful output
+    pylint_args.extend(["--rcfile", pylintrc]) # Use mashdotfiles rcfile
+    pylint_args.append(project_name) # Specify python package
+    pylint_args.append("|")
+    pylint_args.extend(["less", "-R"])
+
+    retcode = subprocess.call(" ".join(pylint_args), shell=True)
+
+if __name__ == '__main__':
+    main()
+

@@ -61,8 +61,12 @@ load-plugins=
 #     Used when class has too many instance attributes, try to reduce this to
 #     get a more simple (and so easier to use) class. This message belongs to
 #     the design checker.
+# C0111: *Missing docstring*
+#     Used when a module, function, class or method has no docstring. Some
+#     special methods like __init__ doesn't necessary require a docstring. This
+#     message belongs to the basic checker.
 
-disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404,R0902
+disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404,R0902,C0111
 
 
 [REPORTS]

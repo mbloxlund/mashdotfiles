@@ -57,8 +57,12 @@ load-plugins=
 # W0404: *Reimport %r (imported line %s)*
 #     Used when a module is reimported multiple times. This message belongs to
 #     the imports checker.
+# R0902: *Too many instance attributes (%s/%s)*
+#     Used when class has too many instance attributes, try to reduce this to
+#     get a more simple (and so easier to use) class. This message belongs to
+#     the design checker.
 
-disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404
+disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404,R0902
 
 
 [REPORTS]

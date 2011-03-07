@@ -65,8 +65,11 @@ load-plugins=
 #     Used when a module, function, class or method has no docstring. Some
 #     special methods like __init__ doesn't necessary require a docstring. This
 #     message belongs to the basic checker.
+# W0201: *Attribute %r defined outside __init__*
+#     Used when an instance attribute is defined outside the __init__ method.
+#     This message belongs to the classes checker.
 
-disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404,R0902,C0111
+disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404,R0902,C0111,W0201
 
 
 [REPORTS]

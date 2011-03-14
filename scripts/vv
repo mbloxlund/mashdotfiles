@@ -38,7 +38,7 @@ import prompt
 
 VIRTUALENV_HOME_ENV = "VIRTUALENV_HOME"
 VIRTUALENV_HOME_DEFAULT = (os.environ.get(VIRTUALENV_HOME_ENV) or 
-                           os.path.join(os.path.expanduser("~"), "envs"))
+                           os.path.join(os.path.expanduser("~"), ".envs"))
 VV_ACTIONS = ("reset", "activate")
 
 

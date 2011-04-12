@@ -52,6 +52,9 @@ def main():
     parser.add_option("-s", "--site-packages",
                       action="store_false", dest="isolated", default=True,
                       help="create virtualenv without --no-site-packages")
+    parser.add_option("-n", "--no-sys",
+                      action="store_true", dest="no_sys", default=False,
+                      help="ignore requirements in -sys.txt files")
 
     (options, args) = parser.parse_args()
 
@@ -70,7 +73,7 @@ def main():
 
     if action == "reset":
         create_environment(options, project_env)
-        install_project(project_env, current_directory)
+        install_project(options, project_env, current_directory)
         print "vv done!"
     if action == "activate":
         activate_env(project_env)
@@ -99,11 +102,16 @@ def create_environment(options, project_env):
         sys.exit(1)
 
 
-def install_project(project_env, current_directory):
+def install_project(options, project_env, current_directory):
     requirements_glob = os.path.join(current_directory, 
                                     "*requirements*.txt")
     requirement_files = glob.glob(requirements_glob)
+    if options.no_sys:
+        print "excluding sys dependencies"
+        requirement_files = [f for f in requirement_files if 
+                                                    not f.endswith("-sys.txt")]
     pip_args = ["pip", "install", "-e", ".", "-E", project_env]
+    print "using requirement files:", requirement_files
     for req_file in requirement_files:
         pip_args.append("-r")
         pip_args.append(req_file)

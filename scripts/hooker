@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+# encoding: utf-8
+import logging
+
+try:
+    import tornado.httpserver
+    import tornado.ioloop
+    import tornado.options
+    import tornado.web
+    from tornado.options import define, options
+except Exception, e:
+    print "you must have tornado installed."
+    print "  easy_install tornado"
+    print "  pip install tornado"
+    import sys
+    sys.exit(1)
+import json
+
+define("port", default=1111, help="run on the given port", type=int)
+define("path", default="/", help="listen to given path", type=str)
+
+
+class PostHandler(tornado.web.RequestHandler):
+    def post(self):
+        logging.info("got message")
+        try:
+            logging.info("%s", json.dumps(json.loads(self.request.body), indent=4))
+        except:
+            logging.warning("message not json: %s", self.request.body)
+
+
+def main():
+    tornado.options.parse_command_line()
+    application = tornado.web.Application([
+        (options.path, PostHandler),
+    ])
+    logging.info("starting hooker on: %s", options.port)
+    logging.info("listening on path: %s", options.path)
+    http_server = tornado.httpserver.HTTPServer(application)
+    http_server.listen(options.port)
+    tornado.ioloop.IOLoop.instance().start()
+
+
+if __name__ == "__main__":
+    main()

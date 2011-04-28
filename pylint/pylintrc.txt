@@ -73,8 +73,12 @@ load-plugins=
 #     option). Usual black listed functions are the ones like map, or filter ,
 #     where Python offers now some cleaner alternative like list comprehension.
 #     This message belongs to the basic checker.
+# :I0011: *Locally disabling %s*
+#     Used when an inline option disables a message or a messages category.
+#     This message belongs to the master checker.
+
   
-disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404,R0902,C0111,W0201,W0141
+disable=W0142,R0913,R0201,R0903,R0921,R0801,W0404,R0902,C0111,W0201,W0141,I0011
 
 
 [REPORTS]

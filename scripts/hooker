@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import logging
+import time
 
 try:
     import tornado.httpserver
@@ -18,14 +19,36 @@ import json
 
 define("port", default=1111, help="run on the given port", type=int)
 define("path", default="/", help="listen to given path", type=str)
+define("stats", default="no", help="only show stat output", type=str, 
+       metavar="yes|no")
+
+last_message = time.time()
+
+
+def sizeof_fmt(num):
+    for x in ['B','KB','MB','GB','TB']:
+        if num < 1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
 
 
 class PostHandler(tornado.web.RequestHandler):
     def post(self):
-        logging.info("got message")
+        global last_message
+        now = time.time()
+        time_delta = now - last_message
+        last_message = now
         try:
-            logging.info("%s", json.dumps(json.loads(self.request.body), indent=4))
-        except:
+            data = json.loads(self.request.body)
+            if options.stats == "yes":
+                format = "delta: %04.2f size(tot): %s size(nbr): %05d"
+                inner_data = data.get("data", [])
+                logging.info(format, time_delta,
+                             sizeof_fmt(len(self.request.body)),
+                             len(inner_data))
+            else:
+                logging.info("%s", json.dumps(data,indent=4))
+        except ValueError:
             logging.warning("message not json: %s", self.request.body)
 
 

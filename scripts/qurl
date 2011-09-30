@@ -29,6 +29,7 @@ Copyright (c) 2011 Mashmobile. All rights reserved.
 
 import inspect
 import json
+import os
 import sys
 from pprint import pformat
 try:
@@ -36,12 +37,12 @@ try:
 except ImportError:
     print "qurl requires python 2.7 or newer"
     sys.exit(-1)
-try:
-    from kombu import BrokerConnection, Exchange, Queue, Consumer, Producer
-except ImportError:
-    print "qurl requires kombu"
-    print "  pip install kombu"
-    sys.exit(-1)
+# try:
+#     from kombu import BrokerConnection, Exchange, Queue, Consumer, Producer
+# except ImportError:
+#     print "qurl requires kombu"
+#     print "  pip install kombu"
+#     sys.exit(-1)
 
 
 ACTION_GET = "GET"
@@ -54,7 +55,7 @@ DEFAULTS = {
     "action": ACTION_GET,
     "exchange": "",
     "exchange-type": "direct",
-    "verbose": False,
+    "verbosity": 0,
 }
 SERIALIZERS = ("json", )
 
@@ -76,23 +77,32 @@ def main():
                         dest="exchange")
     parser.add_argument("-t", "--exchange-type",
                     default=DEFAULTS["exchange-type"], dest="exchange_type")
-    parser.add_argument("-v", "--verbose", default=DEFAULTS["verbose"],
-                        action="store_true")
-    parser.add_argument("routing_key", metavar="Queue name")
+
+    # Debugging options
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-v", default=DEFAULTS["verbosity"],
+                       action="store_const", dest="verbosity", const=1)
+    group.add_argument("-vv", action="store_const", dest="verbosity", const=2)
+    group.add_argument("-vvv", action="store_const", dest="verbosity", const=3)
+
+    # Positional args
+    parser.add_argument("routing_key")
     args = parser.parse_args()
     qurler = Qurl(args)
     try:
         getattr(qurler, "do_%s" % args.action.lower())()
     except Exception, e:
-        print "unhandeled error"
+        # Don't handle for now
         raise
-        # sys.exit(-1)
 
 
 class Qurl(object):
-    def __init__(self, args):
-        self.args = args
-        self.connection = BrokerConnection(self.args.mq)
+    def __init__(self, opts):
+        self.opts = opts
+        self.verbose = False
+        self._setup_logging()
+        from kombu import BrokerConnection
+        self.connection = BrokerConnection(self.opts.mq)
         self.channel = self.connection.channel()
         self._create_entities()
         self.serializers = {
@@ -100,49 +110,65 @@ class Qurl(object):
         }
 
     def do_get(self):
+        from kombu import Consumer
         def on_message(body, message):
             self._print_message(message)
-            if self.args.ack:
+            if self.opts.ack:
                 print "acknowledging message"
                 message.ack()
         consumer = Consumer(self.channel, self.queue, callbacks=[on_message],
-                            auto_declare=self.args.declare)
+                            auto_declare=self.opts.declare)
         consumer.consume()
         self.connection.drain_events()
 
     def do_put(self):
+        from kombu import Producer
         producer = Producer(self.channel, self.exchange,
-                            routing_key=self.args.routing_key,
-                            auto_declare=self.args.declare)
-        print self.args.declare
-        data = self.args.data
+                            routing_key=self.opts.routing_key,
+                            auto_declare=self.opts.declare)
+        print self.opts.declare
+        data = self.opts.data
         producer.publish(data)
 
     def do_consume(self):
         pass
 
+    def _setup_logging(self):
+        os.unsetenv("KOMBU_LOG_DEBUG")
+        os.unsetenv("KOMBU_LOG_CHANNEL")
+        os.unsetenv("KOMBU_LOG_CONNECTION")
+        if self.opts.verbosity >= 1:
+            self.verbose = True
+        if self.opts.verbosity >= 2:
+            os.environ["KOMBU_LOG_CHANNEL"] = "1"
+        if self.opts.verbosity >= 3:
+            os.environ["KOMBU_LOG_DEBUG"] = "1"
+
     def _create_entities(self):
-        self.exchange = Exchange(self.args.exchange,
-                                 type=self.args.exchange_type)
-        self.queue = Queue(self.args.routing_key, self.exchange,
-                           self.args.routing_key)
+        from kombu import Exchange, Queue
+        self.exchange = Exchange(self.opts.exchange,
+                                 type=self.opts.exchange_type)
+        self.queue = Queue(self.opts.routing_key, self.exchange,
+                           self.opts.routing_key)
 
     def _pretty(self, obj):
         return pformat(obj, indent=4)
 
     def _print_message(self, message):
-        print "  payload"
+        print "PAYLOAD"
         self._print_serialized(message.payload)
-        if self.args.verbose:
-            print "  properties:\n%s" % self._pretty(message.properties)
-            print "  delivery_info:\n%s" % self._pretty(message.delivery_info)
+        if self.verbose:
+            print "PROPERTIES:"
+            print pformat(message.properties, indent=4)
+            print "DELIVERY_INFO:"
+            print pformat(message.delivery_info, indent=4)
 
     def _print_serialized(self, data):
-        serializer = self.serializers.get(self.args.serializer, Identity())
+        serializer = self.serializers.get(self.opts.serializer, Identity())
         print serializer.pformat(data)
 
     def _serialize(self, data):
-        serializer = self.serializers.get(self.args.serializer, Identity())
+        serializer = self.serializers.get(self.opts.serializer, Identity())
         return serializer.encode(data)
 
     @classmethod

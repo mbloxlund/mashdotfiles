@@ -77,13 +77,14 @@ def main():
                         dest="exchange")
     parser.add_argument("-t", "--exchange-type",
                     default=DEFAULTS["exchange-type"], dest="exchange_type")
+    parser.add_argument("-H", "--property", dest="properties", action="append",
+                        type=kw_param, default=[])
 
     # Debugging options
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-v", default=DEFAULTS["verbosity"],
                        action="store_const", dest="verbosity", const=1)
     group.add_argument("-vv", action="store_const", dest="verbosity", const=2)
-    group.add_argument("-vvv", action="store_const", dest="verbosity", const=3)
 
     # Positional args
     parser.add_argument("routing_key")
@@ -96,9 +97,18 @@ def main():
         raise
 
 
+def kw_param(string):
+    try:
+        name, value = [v.strip() for v in string.split("=", 2)]
+    except ValueError:
+        raise argparse.ArgumentTypeError("invalid property parameter")
+    return name, value
+
+
 class Qurl(object):
     def __init__(self, opts):
         self.opts = opts
+        print self.opts.properties
         self.verbose = False
         self._setup_logging()
         from kombu import BrokerConnection
@@ -126,9 +136,8 @@ class Qurl(object):
         producer = Producer(self.channel, self.exchange,
                             routing_key=self.opts.routing_key,
                             auto_declare=self.opts.declare)
-        print self.opts.declare
         data = self.opts.data
-        producer.publish(data)
+        producer.publish(data, **dict(self.opts.properties))
 
     def do_consume(self):
         pass
@@ -140,8 +149,6 @@ class Qurl(object):
         if self.opts.verbosity >= 1:
             self.verbose = True
         if self.opts.verbosity >= 2:
-            os.environ["KOMBU_LOG_CHANNEL"] = "1"
-        if self.opts.verbosity >= 3:
             os.environ["KOMBU_LOG_DEBUG"] = "1"
 
     def _create_entities(self):

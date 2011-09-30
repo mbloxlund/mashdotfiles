@@ -22,6 +22,7 @@ See qurl -h for more options.
 KNOWN LIMITATIONS:
     * It's currently not possible to explicitly declare a Queue when the
     default Exchange is used. (cannot figure out if kombu doesn't support it).
+    * Consume is not yet supported
 
 Created by Jacob Kristhammar on 2011-09-30.
 Copyright (c) 2011 Mashmobile. All rights reserved.
@@ -37,26 +38,11 @@ try:
 except ImportError:
     print "qurl requires python 2.7 or newer"
     sys.exit(-1)
-# try:
-#     from kombu import BrokerConnection, Exchange, Queue, Consumer, Producer
-# except ImportError:
-#     print "qurl requires kombu"
-#     print "  pip install kombu"
-#     sys.exit(-1)
 
 
 ACTION_GET = "GET"
 ACTION_PUT = "PUT"
 ACTION_CONSUME = "CONSUME"
-DEFAULTS = {
-    "mq": "amqplib://guest:guest@localhost:5672//",
-    "declare": False,
-    "ack": False,
-    "action": ACTION_GET,
-    "exchange": "",
-    "exchange-type": "direct",
-    "verbosity": 0,
-}
 SERIALIZERS = ("json", )
 
 
@@ -64,26 +50,26 @@ def main():
     parser = argparse.ArgumentParser(
                         description='Simple curl like tool that talks AMQP')
     parser.add_argument("-X", "--action", choices=Qurl.actions(),
-                        default=DEFAULTS["action"], dest="action")
+                        default="get", dest="action")
     parser.add_argument("-d", "--data", dest="data")
     parser.add_argument("-s", "--serializer", choices=SERIALIZERS,
                         dest="serializer")
-    parser.add_argument("-c", "--declare", default=DEFAULTS["declare"],
-                        dest="declare", action="store_true")
-    parser.add_argument("-a", "--ack", default=DEFAULTS["ack"],
-                        dest="ack", action="store_true")
-    parser.add_argument("-m", "--mq", default=DEFAULTS["mq"], dest="mq")
-    parser.add_argument("-e", "--exchange", default=DEFAULTS["exchange"],
-                        dest="exchange")
-    parser.add_argument("-t", "--exchange-type",
-                    default=DEFAULTS["exchange-type"], dest="exchange_type")
+    parser.add_argument("-c", "--declare", default=False, dest="declare",
+                        action="store_true")
+    parser.add_argument("-a", "--ack", default=False, dest="ack",
+                        action="store_true")
+    parser.add_argument("-m", "--mq", dest="mq",
+                        default="amqplib://guest:guest@localhost:5672//")
+    parser.add_argument("-e", "--exchange", default="", dest="exchange")
+    parser.add_argument("-t", "--exchange-type", default="direct",
+                        dest="exchange_type")
     parser.add_argument("-H", "--property", dest="properties", action="append",
                         type=kw_param, default=[])
 
     # Debugging options
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-v", default=DEFAULTS["verbosity"],
-                       action="store_const", dest="verbosity", const=1)
+    group.add_argument("-v", default=0, action="store_const", dest="verbosity",
+                       const=1)
     group.add_argument("-vv", action="store_const", dest="verbosity", const=2)
 
     # Positional args

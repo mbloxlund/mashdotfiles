@@ -1,0 +1,197 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+qurl - Simple curl like tool that talks AMQP
+
+Setup:
+    TODO
+
+Actions:
+
+put
+    Put a message in a queue
+
+get
+    Get a single message from a queue
+
+consume
+    Get a continues stream of messages from a queue
+
+See qurl -h for more options.
+
+KNOWN LIMITATIONS:
+    * It's currently not possible to explicitly declare a Queue when the
+    default Exchange is used. (cannot figure out if kombu doesn't support it).
+
+Created by Jacob Kristhammar on 2011-09-30.
+Copyright (c) 2011 Mashmobile. All rights reserved.
+"""
+
+import inspect
+import json
+import sys
+from pprint import pformat
+try:
+    import argparse
+except ImportError:
+    print "qurl requires python 2.7 or newer"
+    sys.exit(-1)
+try:
+    from kombu import BrokerConnection, Exchange, Queue, Consumer, Producer
+except ImportError:
+    print "qurl requires kombu"
+    print "  pip install kombu"
+    sys.exit(-1)
+
+
+ACTION_GET = "GET"
+ACTION_PUT = "PUT"
+ACTION_CONSUME = "CONSUME"
+DEFAULTS = {
+    "mq": "amqplib://guest:guest@localhost:5672//",
+    "declare": False,
+    "ack": False,
+    "action": ACTION_GET,
+    "exchange": "",
+    "exchange-type": "direct",
+    "verbose": False,
+}
+SERIALIZERS = ("json", )
+
+
+def main():
+    parser = argparse.ArgumentParser(
+                        description='Simple curl like tool that talks AMQP')
+    parser.add_argument("-X", "--action", choices=Qurl.actions(),
+                        default=DEFAULTS["action"], dest="action")
+    parser.add_argument("-d", "--data", dest="data")
+    parser.add_argument("-s", "--serializer", choices=SERIALIZERS,
+                        dest="serializer")
+    parser.add_argument("-c", "--declare", default=DEFAULTS["declare"],
+                        dest="declare", action="store_true")
+    parser.add_argument("-a", "--ack", default=DEFAULTS["ack"],
+                        dest="ack", action="store_true")
+    parser.add_argument("-m", "--mq", default=DEFAULTS["mq"], dest="mq")
+    parser.add_argument("-e", "--exchange", default=DEFAULTS["exchange"],
+                        dest="exchange")
+    parser.add_argument("-t", "--exchange-type",
+                    default=DEFAULTS["exchange-type"], dest="exchange_type")
+    parser.add_argument("-v", "--verbose", default=DEFAULTS["verbose"],
+                        action="store_true")
+    parser.add_argument("routing_key", metavar="Queue name")
+    args = parser.parse_args()
+    qurler = Qurl(args)
+    try:
+        getattr(qurler, "do_%s" % args.action.lower())()
+    except Exception, e:
+        print "unhandeled error"
+        raise
+        # sys.exit(-1)
+
+
+class Qurl(object):
+    def __init__(self, args):
+        self.args = args
+        self.connection = BrokerConnection(self.args.mq)
+        self.channel = self.connection.channel()
+        self._create_entities()
+        self.serializers = {
+            "json": JSON()
+        }
+
+    def do_get(self):
+        def on_message(body, message):
+            self._print_message(message)
+            if self.args.ack:
+                print "acknowledging message"
+                message.ack()
+        consumer = Consumer(self.channel, self.queue, callbacks=[on_message],
+                            auto_declare=self.args.declare)
+        consumer.consume()
+        self.connection.drain_events()
+
+    def do_put(self):
+        producer = Producer(self.channel, self.exchange,
+                            routing_key=self.args.routing_key,
+                            auto_declare=self.args.declare)
+        print self.args.declare
+        data = self.args.data
+        producer.publish(data)
+
+    def do_consume(self):
+        pass
+
+    def _create_entities(self):
+        self.exchange = Exchange(self.args.exchange,
+                                 type=self.args.exchange_type)
+        self.queue = Queue(self.args.routing_key, self.exchange,
+                           self.args.routing_key)
+
+    def _pretty(self, obj):
+        return pformat(obj, indent=4)
+
+    def _print_message(self, message):
+        print "  payload"
+        self._print_serialized(message.payload)
+        if self.args.verbose:
+            print "  properties:\n%s" % self._pretty(message.properties)
+            print "  delivery_info:\n%s" % self._pretty(message.delivery_info)
+
+    def _print_serialized(self, data):
+        serializer = self.serializers.get(self.args.serializer, Identity())
+        print serializer.pformat(data)
+
+    def _serialize(self, data):
+        serializer = self.serializers.get(self.args.serializer, Identity())
+        return serializer.encode(data)
+
+    @classmethod
+    def actions(cls):
+        return [m[3:].upper() for m, _ in inspect.getmembers(cls) if 
+                m.startswith("do_")]
+
+
+class Serializer(object):
+    def encode(self, obj):
+        raise NotImplementedError
+
+    def decode(self, data):
+        raise NotImplementedError
+
+    def pformat(self, obj):
+        raise NotImplementedError
+
+
+class Identity(Serializer):
+    @classmethod
+    def encode(cls, obj):
+        return obj
+
+    @classmethod
+    def decode(cls, data):
+        return data
+
+    @classmethod
+    def pformat(cls, obj):
+        return str(obj)
+
+
+class JSON(Serializer):
+    @classmethod
+    def encode(cls, obj):
+        return json.dumps(obj)
+
+    @classmethod
+    def decode(cls, data):
+        return json.loads(data)
+
+    @classmethod
+    def pformat(cls, obj):
+        if isinstance(obj, basestring):
+            obj = cls.decode(obj)
+        return json.dumps(obj, indent=2)
+
+
+if __name__ == '__main__':
+    main()
+

@@ -108,7 +108,6 @@ def kw_param(string):
 class Qurl(object):
     def __init__(self, opts):
         self.opts = opts
-        print self.opts.properties
         self.verbose = False
         self._setup_logging()
         from kombu import BrokerConnection

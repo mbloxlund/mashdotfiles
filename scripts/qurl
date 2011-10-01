@@ -28,6 +28,10 @@ See qurl -h for more options.
 
 
 EXAMPLES:
+    Retrieve a single message from a queue:
+
+        $ qurl my.queue.name
+
     Send a typical request/response message:
 
         $ qurl -X PUT -H 'reply_to=my.reply.queue' -H 'correlation_id=42' \\

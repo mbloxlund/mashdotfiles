@@ -3,10 +3,17 @@
 """
 qurl - Simple curl like tool that talks AMQP
 
-Setup:
-    TODO
+SETUP:
+    qurl requires the python library kombu which you can install with:
 
-Actions:
+        $ pip install kombu
+
+    or
+
+        $ easy_install kombu
+
+
+ACTIONS:
 
 put
     Put a message in a queue
@@ -14,10 +21,27 @@ put
 get
     Get a single message from a queue
 
-consume
+consume (not implemented)
     Get a continues stream of messages from a queue
 
 See qurl -h for more options.
+
+
+EXAMPLES:
+    Send a typical request/response message:
+
+        $ qurl -X PUT -H 'reply_to=my.reply.queue' -H 'correlation_id=42' \\
+               -d '{"question": "who was phone?"}' questions.rpc.queue
+
+    Get result from from my.reply.queue, decode it as JSON and print it to
+    stdout in verbose mode:
+
+        $ qurl -v -s json questions.rpc.queue
+
+    Same as above but acknowledges the the message.
+
+        $ qurl -v -s json -a questions.rpc.queue
+
 
 KNOWN LIMITATIONS:
     * It's currently not possible to explicitly declare a Queue when the
@@ -40,31 +64,42 @@ except ImportError:
     sys.exit(-1)
 
 
-ACTION_GET = "GET"
-ACTION_PUT = "PUT"
-ACTION_CONSUME = "CONSUME"
 SERIALIZERS = ("json", )
 
 
 def main():
-    parser = argparse.ArgumentParser(
-                        description='Simple curl like tool that talks AMQP')
+    parser = argparse.ArgumentParser(description=globals()["__doc__"],
+                        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-X", "--action", choices=Qurl.actions(),
                         default="get", dest="action")
-    parser.add_argument("-d", "--data", dest="data")
+    parser.add_argument("-d", "--data", dest="data",
+                        help="The data that will be published to an exchange")
     parser.add_argument("-s", "--serializer", choices=SERIALIZERS,
-                        dest="serializer")
+                        dest="serializer",
+                        help="Will be used to decode incoming messages")
     parser.add_argument("-c", "--declare", default=False, dest="declare",
-                        action="store_true")
+                        action="store_true",
+                        help="Explicitly declares the exchange and queues as "
+                             "provided by the routing_key and --exchange if "
+                             "set")
     parser.add_argument("-a", "--ack", default=False, dest="ack",
-                        action="store_true")
+                        action="store_true",
+                        help="Recevied messages will be acknowledged if set")
     parser.add_argument("-m", "--mq", dest="mq",
-                        default="amqplib://guest:guest@localhost:5672//")
-    parser.add_argument("-e", "--exchange", default="", dest="exchange")
+                        default="amqplib://guest:guest@localhost:5672//",
+                        help="a kombu amqp URL spec",
+            metavar="transport://userid:password@hostname:port/virtual_host")
+    parser.add_argument("-e", "--exchange", default="", dest="exchange",
+                        help="the name of the exchange that should be used")
     parser.add_argument("-t", "--exchange-type", default="direct",
-                        dest="exchange_type")
-    parser.add_argument("-H", "--property", dest="properties", action="append",
-                        type=kw_param, default=[])
+                        dest="exchange_type",
+                        help="The exchange type to be declared (only has "
+                             "effect when --declare is used)")
+    parser.add_argument("-H", "--property", dest="properties",
+                        action="append", type=kw_param, default=[],
+                        help="A list of AMQP properties that should be set "
+                             "when publishing messages",
+                        metavar="<property_name>=<value>")
 
     # Debugging options
     group = parser.add_mutually_exclusive_group()
@@ -85,7 +120,7 @@ def main():
 
 def kw_param(string):
     try:
-        name, value = [v.strip() for v in string.split("=", 2)]
+        name, value = [v.strip() for v in string.split("=", 1)]
     except ValueError:
         raise argparse.ArgumentTypeError("invalid property parameter")
     return name, value

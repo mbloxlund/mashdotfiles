@@ -44,7 +44,7 @@ EXAMPLES:
 
     Same as above but acknowledges the the message.
 
-        $ qurl -v -s json -a questions.rpc.queue
+        $ qurl -v -s json -a my.reply.queue
 
 
 KNOWN LIMITATIONS:

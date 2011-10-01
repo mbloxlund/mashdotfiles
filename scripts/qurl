@@ -76,7 +76,7 @@ def main():
                         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-X", "--action", choices=Qurl.actions(),
                         default="get", dest="action")
-    parser.add_argument("-d", "--data", dest="data",
+    parser.add_argument("-d", "--data", dest="data", type=maybe_file,
                         help="The data that will be published to an exchange")
     parser.add_argument("-s", "--serializer", choices=SERIALIZERS,
                         dest="serializer",
@@ -120,6 +120,13 @@ def main():
     except Exception, e:
         # Don't handle for now
         raise
+
+
+def maybe_file(string):
+    if string.startswith("@"):
+        return argparse.FileType('r')(string[1:]).read()
+    else:
+        return string
 
 
 def kw_param(string):

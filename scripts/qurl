@@ -22,7 +22,7 @@ get
     Get a single message from a queue
 
 consume (not implemented)
-    Get a continues stream of messages from a queue
+    Get a continuous stream of messages from a queue
 
 See qurl -h for more options.
 

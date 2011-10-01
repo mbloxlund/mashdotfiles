@@ -40,7 +40,7 @@ EXAMPLES:
     Get result from from my.reply.queue, decode it as JSON and print it to
     stdout in verbose mode:
 
-        $ qurl -v -s json questions.rpc.queue
+        $ qurl -v -s json my.reply.queue
 
     Same as above but acknowledges the the message.
 
